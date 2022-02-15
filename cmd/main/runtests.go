@@ -5,18 +5,19 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/Cyberax/go-nfs-client/nfs4"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ggaaooppeenngg/go-nfs-client/nfs4"
+	"github.com/stretchr/testify/assert"
 )
 
 const NumScaleThreads = 40
-const UploadSize = 1024*1024*5
-const UploadTarget = 1024*1024*1024*5
+const UploadSize = 1024 * 1024 * 5
+const UploadTarget = 1024 * 1024 * 1024 * 5
 
 //goland:noinspection GoNilness
 func runTests(server, rootPath string) error {
@@ -37,7 +38,7 @@ func runTests(server, rootPath string) error {
 
 	// Remove anything from the old tests
 	println("Removing old files")
-	err = nfs4.RemoveRecursive(client, rootPath + "tests")
+	err = nfs4.RemoveRecursive(client, rootPath+"tests")
 	checkErr(err)
 
 	println("Making tests directory")
@@ -65,12 +66,12 @@ func runTests(server, rootPath string) error {
 	check(nfs4.IsNfsError(err, nfs4.ERROR_NOTEMPTY))
 
 	// Check file ops
-	testFileOps(client, rootPath + "tests/")
+	testFileOps(client, rootPath+"tests/")
 
-	testMassOps(client, rootPath + "tests/")
+	testMassOps(client, rootPath+"tests/")
 
 	println("Cleaning up")
-	err = nfs4.RemoveRecursive(client, rootPath + "tests")
+	err = nfs4.RemoveRecursive(client, rootPath+"tests")
 	checkErr(err)
 
 	return nil
@@ -91,7 +92,7 @@ func testFileOps(cli nfs4.NfsInterface, path string) {
 
 	println("Checking file download")
 	buffer := bytes.NewBufferString("")
-	read, err := cli.ReadFileAll(path + "file.bin", buffer)
+	read, err := cli.ReadFileAll(path+"file.bin", buffer)
 	checkErr(err)
 	check(read == uint64(len(data)))
 	check(assert.ObjectsAreEqual(buffer.Bytes(), data))
@@ -111,19 +112,19 @@ func testFileOps(cli nfs4.NfsInterface, path string) {
 	println("Verifying file deletion")
 	_, err = cli.GetFileInfo(path + "file.bin")
 	check(nfs4.IsNfsError(err, nfs4.ERROR_NOENT))
-	_, err = cli.ReadFileAll(path + "file.bin", buffer)
+	_, err = cli.ReadFileAll(path+"file.bin", buffer)
 	check(nfs4.IsNfsError(err, nfs4.ERROR_NOENT))
 }
 
 func testMassOps(cli nfs4.NfsInterface, path string) {
 	println("Making the mass directory")
-	err := cli.MakePath(path+"/mass")
+	err := cli.MakePath(path + "/mass")
 	checkErr(err)
 
 	println("Checking creation")
 	st := time.Now()
 	files := make(map[string]bool)
-	for i := 0; i<2000; i++ {
+	for i := 0; i < 2000; i++ {
 		curFile := fmt.Sprintf("%s/mass/file-%d", path, i)
 		_, err = cli.ReWriteFile(curFile, strings.NewReader("aaaaaaa"))
 		files[fmt.Sprintf("file-%d", i)] = true
@@ -131,7 +132,7 @@ func testMassOps(cli nfs4.NfsInterface, path string) {
 	println("Time diff (ms): ", time.Now().Sub(st).Milliseconds())
 	println("Getting the file list")
 
-	lst, err := cli.GetFileList(path+"/mass")
+	lst, err := cli.GetFileList(path + "/mass")
 	checkErr(err)
 	for _, l := range lst {
 		check(!l.IsDir)
@@ -174,7 +175,7 @@ func runScale(server, rootPath string) error {
 		}
 	}()
 
-	for i := 0; i<NumScaleThreads; i++ {
+	for i := 0; i < NumScaleThreads; i++ {
 		client, err := nfs4.NewNfsClient(ctx, server, nfs4.AuthParams{
 			MachineName: hostname,
 		})
@@ -190,7 +191,7 @@ func runScale(server, rootPath string) error {
 
 	// Remove anything from the old tests
 	println("Removing old files")
-	err := nfs4.RemoveRecursive(nfsClients[0], rootPath + "scale")
+	err := nfs4.RemoveRecursive(nfsClients[0], rootPath+"scale")
 	checkErr(err)
 
 	err = nfsClients[0].MakePath(rootPath + "scale")
@@ -198,7 +199,7 @@ func runScale(server, rootPath string) error {
 
 	defer func() {
 		println("After test cleanup")
-		_ = nfs4.RemoveRecursive(nfsClients[0], rootPath + "scale")
+		_ = nfs4.RemoveRecursive(nfsClients[0], rootPath+"scale")
 	}()
 
 	data := make([]byte, UploadSize)
@@ -225,7 +226,7 @@ func testWriteScaling(nfsClients []nfs4.NfsInterface, rootPath string, data []by
 		wait.Add(1)
 		go func(c nfs4.NfsInterface) {
 			defer wait.Done()
-			for ; !doneUploading; {
+			for !doneUploading {
 				nm := fmt.Sprintf(rootPath+"scale/test-%d", atomic.AddInt32(&count, 1))
 				n, err := c.ReWriteFile(nm, bytes.NewReader(data))
 				if err != nil {
@@ -266,7 +267,7 @@ func testReadScaling(nfsClients []nfs4.NfsInterface, rootPath string, data []byt
 		wait.Add(1)
 		go func(c nfs4.NfsInterface) {
 			defer wait.Done()
-			for ; !done; {
+			for !done {
 				nm := fmt.Sprintf(rootPath+"scale/test-%d", atomic.AddInt32(&count, 1))
 				reader := bytes.NewBufferString("")
 				n, err := c.ReadFileAll(nm, reader)
