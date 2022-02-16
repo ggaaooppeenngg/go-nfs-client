@@ -28,7 +28,7 @@ type NfsInterface interface {
 	Ping() error
 	Close()
 
-	GetFileList(path string) ([]FileInfo, error)
+	GetFileList(path string, limit int) ([]FileInfo, error)
 	GetFileInfo(path string) (FileInfo, error)
 	ReadFileAll(path string, writer io.Writer) (uint64, error)
 	ReadFile(path string, offset, count uint64, writer io.Writer) (uint64, error)
@@ -63,10 +63,11 @@ type AuthParams struct {
 }
 
 type FileInfo struct {
-	Name  string
-	IsDir bool
-	Size  uint64
-	Mtime time.Time
+	Name   string
+	IsDir  bool
+	IsLink bool
+	Size   uint64
+	Mtime  time.Time
 }
 
 // Create the NFS client with the specified parameters. The `server` string must include port.
@@ -382,7 +383,7 @@ func splitPath(path string) []string {
 	return splits[0:curPos]
 }
 
-func (c *NfsClient) GetFileList(path string) ([]FileInfo, error) {
+func (c *NfsClient) GetFileList(path string, limit int) ([]FileInfo, error) {
 	var args = c.makePathLookupArgs(splitPath(path))
 
 	args = append(args,
@@ -421,6 +422,10 @@ func (c *NfsClient) GetFileList(path string) ([]FileInfo, error) {
 		}
 
 		if curDirList.Reply.Eof {
+			break
+		}
+		if limit > 0 && len(fileList) > limit {
+			fileList = fileList[:limit]
 			break
 		}
 		res, err := c.runNfsTransaction([]Nfs_argop4{
@@ -476,6 +481,7 @@ func (c *NfsClient) translateFileMeta(name string, attrs Fattr4) FileInfo {
 		curOff += 4
 
 		res.IsDir = Nfs_ftype4(fileType) == NF4DIR
+		res.IsLink = Nfs_ftype4(fileType) == NF4LNK
 	}
 
 	if len(atm) > 0 && atm[0]&(1<<FATTR4_SIZE) != 0 {
@@ -871,7 +877,7 @@ func (c *NfsClient) incrementNfsSeq(err error) {
 }
 
 func RemoveRecursive(nfs NfsInterface, path string) error {
-	list, err := nfs.GetFileList(path)
+	list, err := nfs.GetFileList(path, 0)
 	if IsNfsError(err, ERROR_NOENT) {
 		return nil
 	}
