@@ -421,13 +421,15 @@ func (c *NfsClient) GetFileList(path string, limit int) ([]FileInfo, error) {
 			ent = ent.Nextentry
 		}
 
-		if curDirList.Reply.Eof {
-			break
-		}
 		if limit > 0 && len(fileList) > limit {
 			fileList = fileList[:limit]
 			break
 		}
+
+		if curDirList.Reply.Eof {
+			break
+		}
+
 		res, err := c.runNfsTransaction([]Nfs_argop4{
 			{
 				Argop: OP_PUTFH,

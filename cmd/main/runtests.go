@@ -132,7 +132,7 @@ func testMassOps(cli nfs4.NfsInterface, path string) {
 	println("Time diff (ms): ", time.Now().Sub(st).Milliseconds())
 	println("Getting the file list")
 
-	lst, err := cli.GetFileList(path + "/mass")
+	lst, err := cli.GetFileList(path+"/mass", 0)
 	checkErr(err)
 	for _, l := range lst {
 		check(!l.IsDir)
